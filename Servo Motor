@@ -1,0 +1,181 @@
+#include <Servo.h>
+
+// create servo object to control a servo
+Servo myservo; 
+
+// CONSTANTS
+const int key[] = {A3, A2, A1, A0}; //swipe pin values
+
+// VARIABLES
+// measure the baseline touch values when there is no touch
+int swipeBaseline[] = {0,0,0,0};
+
+int swipe[] = {0,0,0,0};
+
+//value to determine tolerance difference between touch and touch baseline
+int tolerance =1;
+
+//to determine the rotation number for servo
+int delayTime =0;
+
+//to determine direction
+int holdPosition = 100;
+
+//variables to detect swipe position state of the system
+unsigned long pressedTime = 0;
+unsigned long releasedTime = 0;
+
+// booleans to determine if the segment has been touched
+bool swipeTouched[] = {false, false, false,false};
+
+void setup() 
+{
+  // put your setup code here, to run once:
+  for(int i=0; i<4; i++)
+  {
+    pinMode(key[i], INPUT);
+  }
+
+  // measure the baseline touch values when there is no touch
+  for(int i=0; i<4; i++)
+  {
+    swipeBaseline[i]= readCapacitivePin(key[i]);
+  }
+  
+  Serial.begin(9600); //begin serial monitor
+
+  Serial.println("baseline values: ");
+  for(int i=0; i<4; i++)
+  {
+    Serial.println(swipeBaseline[i]);
+  }
+}
+
+void loop() 
+{
+  // set touch values that is more than the baseline
+  for(int i=0; i<4; i++)
+  {
+    swipe[i] = readCapacitivePin(key[i])- swipeBaseline[i];
+  }
+  
+  //printTouchChanges();
+  servoSwipe();
+
+  delay(500);
+}
+
+//rotated the servo in clock or anti clockwise to release the thread 
+void callServo (int val, int delayMultiple)
+{
+  if( val ==0)
+  {
+     myservo.attach(6); 
+     myservo.write(0); 
+     Serial.println("backward");
+     delay(2000*delayMultiple);
+     myservo.detach();
+  }
+  else if (val ==180)
+  {
+    myservo.attach(6); 
+     myservo.write(180); 
+     Serial.println("forward");
+     delay(2200*delayMultiple);
+     myservo.detach();
+  }
+}
+
+//reads if a tab has been touched 
+//void servoSwipe()
+//{
+//  for(int i=0;i<4; i++)
+//  {
+//    if (swipe[i] > tolerance && swipeTouched[i] == false) 
+//    {
+//       swipeTouched[i] = true;
+//       printTouchChanges();
+//       delayTime = 1*(i+1);
+//       pressedTime = millis();
+//    }
+//      
+//    else if ((swipe[i] <= tolerance) && (swipeTouched[i] == true)) 
+//    {
+//      releasedTime = millis();
+//      
+//      // if the press is longer than 3000 milliseconds, trigger the LED
+//      if (releasedTime - pressedTime > 1500) 
+//      {
+//        Serial.print("swipe ");
+//        Serial.print(i);
+//        Serial.println(" long pressed");
+//        callServo(0,delayTime);
+//      }
+//      swipeTouched[i] = false; 
+//    }
+//  }
+//}
+
+//reads if a tab has been touched 
+void servoSwipe()
+{
+  for(int i=0;i<4; i++)
+  {
+    if (swipe[i] > tolerance && swipeTouched[i] == false) 
+    {
+       swipeTouched[i] = true;
+       printTouchChanges();
+       //delayTime = 1*(i+1);
+       pressedTime = millis();
+       if(holdPosition == 100)
+       {
+        holdPosition = i;
+       }
+    }
+      
+    else if ((swipe[i] <= tolerance) && (swipeTouched[i] == true)) 
+    {
+      releasedTime = millis();
+      
+      // if the press is longer than 1500 milliseconds, trigger the LED
+      if (releasedTime - pressedTime > 1500) 
+      {
+        Serial.print("swipe ");
+        Serial.print(i);
+        Serial.println(" long pressed");
+        Serial.print("hold position is ");
+        Serial.println(holdPosition);
+        if(holdPosition == i)
+        {
+          Serial.println("servo wont move, same position");
+        }
+        else if(holdPosition < i)
+        {
+          callServo(180, i-holdPosition);
+          holdPosition = i;
+        }
+        else if( holdPosition >i)
+        {
+          callServo(0, holdPosition - i);
+          holdPosition = i;
+        }
+      }
+      swipeTouched[i] = false;
+    }
+  }
+}
+
+// prints value if change is greater than the baseline measured at setUp()
+void printTouchChanges()
+{
+  for(int i=0;i<4; i++)
+  {
+    if (swipe[i] > tolerance)
+    {
+      Serial.print(" swipe ");
+      Serial.print(i);
+      Serial.print(" = ");
+      Serial.println(swipe[i]);
+    }
+  }
+}
